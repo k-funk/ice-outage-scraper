@@ -1,6 +1,6 @@
 # cURL-Based Approach
 
-On 2022-03-20, they have what appears to be a client bug that makes the data not load on the page. However, network requests suggests that the data is still coming through. Might need to do a more manual approach if this a common ocurrence.
+On 2022-03-20, they have what appears to be a client bug that makes the results not load on the page. However, network requests suggests that the data is still being successfully fetched. Might need to do a more manual approach if this a common ocurrence.
 
 ## request 1
 
