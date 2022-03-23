@@ -1,8 +1,9 @@
 import puppeteer from 'puppeteer'
 
 const ICE_URL = 'https://www.grupoice.com/wps/portal/ICE/electricidad/suspensiones-electricas-programadas'
+const SEARCH_TERM = 'manuel'
 
-async function getData(browser: puppeteer.Browser) {
+async function getData(browser: puppeteer.Browser, debug: boolean) {
   const page = await browser.newPage()
   await page.goto(ICE_URL)
   await page.waitForNetworkIdle()
@@ -15,16 +16,28 @@ async function getData(browser: puppeteer.Browser) {
     throw new Error('No initial results on page load. The site may be malfunctioning.')
   }
 
-  await page.type('#txtSearch', 'manuel')
+  await page.type('#txtSearch', SEARCH_TERM)
+  const hasNoResults = await page.$$('#tablaDatos > tbody > tr > td.dataTables_empty')
 
-  await page.screenshot({ path: './test.png' })
+  if (debug) {
+    await page.screenshot({ path: './test.png', fullPage: true })
+  }
+
+  if (hasNoResults.length === 1) {
+    console.log(`No planned outages based on search term: "${SEARCH_TERM}"`)
+  } else {
+    const rows = await page.$$('#tablaDatos > tbody > tr')
+    console.log(`Number of Planned Outages: ${rows.length}`)
+    const textContentsOfRows = await Promise.all(rows.map(row => row.$$eval('td:not([hidden]) .contenidoSpan', els => els.map(el => el.textContent))))
+    console.log(textContentsOfRows)
+  }
 }
 
-async function task(options = { quiet: true }) {
+async function task(options = { quiet: true, debug: false }) {
   const browser = await puppeteer.launch({ headless: true })
 
   try {
-    await getData(browser)
+    await getData(browser, options.debug)
   } catch(err) {
     console.error(err)
   }
@@ -35,7 +48,7 @@ async function task(options = { quiet: true }) {
 }
 
 async function main() {
-  task({ quiet: false })
+  task({ quiet: false, debug: true })
 }
 
 main()
