@@ -1,13 +1,21 @@
 import puppeteer from 'puppeteer'
 
 const ICE_URL = 'https://www.grupoice.com/wps/portal/ICE/electricidad/suspensiones-electricas-programadas'
-const SEARCH_TERM = 'manuel'
+const LANGUAGE = 'en'
+const SEARCH_TERM = 'manuel' // this must match the language. ie: "lemon" instead of "limón" if in english
+
+async function changeLanguage(page: puppeteer.Page) {
+  await page.select('.goog-te-combo', LANGUAGE)
+  await page.waitForTimeout(500) // wait for page to rerender
+}
 
 async function getData(browser: puppeteer.Browser, debug: boolean) {
   const page = await browser.newPage()
   await page.goto(ICE_URL)
   await page.waitForNetworkIdle()
   await page.waitForTimeout(2000)
+
+  await changeLanguage(page)
 
   // On 2022-03-20, they have what appears to be a client bug that makes the results not load on the page. However,
   // network requests suggests that the data is still coming through.
