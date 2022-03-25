@@ -1,8 +1,19 @@
 import puppeteer from 'puppeteer'
+import pad from 'pad'
 
 const ICE_URL = 'https://www.grupoice.com/wps/portal/ICE/electricidad/suspensiones-electricas-programadas'
 const LANGUAGE = 'en'
 const SEARCH_TERM = 'manuel' // this must match the language. ie: "lemon" instead of "limón" if in english
+
+function log(msg: any, multiline?: boolean) {
+  const now = new Date().toLocaleString()
+  if (multiline) {
+   console.log(now)
+   console.log(msg)
+  } else {
+    console.log(`${pad(now, 23)} | ${msg}`)
+  }
+}
 
 async function changeLanguage(page: puppeteer.Page) {
   await page.select('.goog-te-combo', LANGUAGE)
@@ -32,12 +43,12 @@ async function getData(browser: puppeteer.Browser, debug: boolean) {
   }
 
   if (hasNoResults.length === 1) {
-    console.log(`No planned outages based on search term: "${SEARCH_TERM}"`)
+    log(`No planned outages based on search term: "${SEARCH_TERM}"`)
   } else {
     const rows = await page.$$('#tablaDatos > tbody > tr')
-    console.log(`Number of Planned Outages: ${rows.length}`)
+    log(`Number of Planned Outages: ${rows.length}`)
     const textContentsOfRows = await Promise.all(rows.map(row => row.$$eval('td:not([hidden]) .contenidoSpan', els => els.map(el => el.textContent))))
-    console.log(textContentsOfRows)
+    log(textContentsOfRows, true)
   }
 }
 
@@ -52,7 +63,11 @@ async function task(options = { quiet: true, debug: false }) {
 
   browser.close()
 
-  console.log(options.quiet ? '.' : 'Done')
+  if (options.quiet) {
+    console.log('.')
+  } else {
+    log('Done')
+  }
 }
 
 async function main() {
