@@ -1,10 +1,12 @@
 import puppeteer from 'puppeteer'
 import pad from 'pad'
+import dotenv from 'dotenv'
+import sendGrid from '@sendgrid/mail'
 
 const ICE_URL = 'https://www.grupoice.com/wps/portal/ICE/electricidad/suspensiones-electricas-programadas'
 const LANGUAGE = 'en'
 // TODO: make this an array of search terms
-const SEARCH_TERM = 'quepos' // this must match the translated language. ie: "lemon" instead of "limón" if in english
+const SEARCH_TERM = 'manuel' // this must match the translated language. ie: "lemon" instead of "limón" if in english
 
 function log(msg: any, multiline?: boolean) {
   const now = new Date().toLocaleString()
@@ -33,7 +35,7 @@ async function getData(browser: puppeteer.Browser, debug: boolean) {
   const page = await browser.newPage()
   await page.goto(ICE_URL)
   await page.waitForNetworkIdle()
-  await page.waitForTimeout(2000)
+  await page.waitForTimeout(1000)
 
   await changeLanguage(page)
 
@@ -53,34 +55,73 @@ async function getData(browser: puppeteer.Browser, debug: boolean) {
 
   if (hasNoResults.length === 1) {
     log(`No planned outages based on search term: "${SEARCH_TERM}"`)
-  } else {
-    const rows = await page.$$('#tablaDatos > tbody > tr')
-    log(`Number of Planned Outages: ${rows.length}`)
-    const textContentsOfRows = await Promise.all(rows.map(row => row.$$eval('td:not([hidden]) .contenidoSpan', els => els.map(el => el.textContent))))
-    log(parseRows(textContentsOfRows), true)
+    return
   }
+
+  const rows = await page.$$('#tablaDatos > tbody > tr')
+  log(`Number of Planned Outages: ${rows.length}`)
+  const textContentsOfRows = await Promise.all(rows.map(row => row.$$eval('td:not([hidden]) .contenidoSpan', els => els.map(el => el.textContent))))
+
+  const parsedRows = parseRows(textContentsOfRows)
+  log(parsedRows, true)
+  return parsedRows
 }
 
-async function task(options = { quiet: true, debug: false }) {
+async function task(
+  { quiet = true, debug = false, sendGridEnvVars }:
+    { quiet: boolean, debug: boolean, sendGridEnvVars?: { key: string, to: string, from: string } }
+) {
+
   const browser = await puppeteer.launch({ headless: true })
 
+  let data: any
   try {
-    await getData(browser, options.debug)
+    data = await getData(browser, debug)
   } catch(err) {
     console.error(err)
   }
 
   browser.close()
 
-  if (options.quiet) {
+  if (data) {
+    if (sendGridEnvVars) {
+      sendGrid.setApiKey(sendGridEnvVars.key)
+      try {
+        await sendGrid.send({
+          to: sendGridEnvVars.to,
+          from: sendGridEnvVars.from,
+          subject: `ICE Outage Alert: ${SEARCH_TERM}`,
+          text: JSON.stringify(data, null, 2),
+        })
+        log('Sendgrid email successful.')
+      } catch (err) {
+        log('Sendgrid email failed.')
+        console.error(err)
+      }
+    } else {
+      log('SendGrid not configured.')
+    }
+  }
+
+  if (quiet) {
     console.log('.')
   } else {
-    log('Done')
+    log('Done.')
   }
 }
 
 async function main() {
-  task({ quiet: false, debug: true })
+  dotenv.config({ path: './.env.local' })
+
+  const { SENDGRID_KEY, SENDGRID_FROM, SENDGRID_TO } = process.env
+  const sendGridEnvVars = SENDGRID_KEY && SENDGRID_FROM && SENDGRID_TO
+    ? { key: SENDGRID_KEY, to: SENDGRID_TO, from: SENDGRID_FROM }
+    : undefined
+  task({
+    quiet: false,
+    debug: true,
+    sendGridEnvVars,
+  })
 }
 
 main()
