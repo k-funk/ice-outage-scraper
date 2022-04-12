@@ -3,7 +3,8 @@ import pad from 'pad'
 
 const ICE_URL = 'https://www.grupoice.com/wps/portal/ICE/electricidad/suspensiones-electricas-programadas'
 const LANGUAGE = 'en'
-const SEARCH_TERM = 'manuel' // this must match the language. ie: "lemon" instead of "limón" if in english
+// TODO: make this an array of search terms
+const SEARCH_TERM = 'quepos' // this must match the translated language. ie: "lemon" instead of "limón" if in english
 
 function log(msg: any, multiline?: boolean) {
   const now = new Date().toLocaleString()
@@ -18,6 +19,14 @@ function log(msg: any, multiline?: boolean) {
 async function changeLanguage(page: puppeteer.Page) {
   await page.select('.goog-te-combo', LANGUAGE)
   await page.waitForTimeout(500) // wait for page to rerender
+}
+
+function parseRows(rows: (string | null)[][]) {
+  return rows.map(row => {
+    const trimmedRows = row.map(item => item?.replace(/^[\s]+|[\s]+$/g, ''))
+    const [dateString, location, details] = trimmedRows
+    return { dateString, location, details }
+  })
 }
 
 async function getData(browser: puppeteer.Browser, debug: boolean) {
@@ -48,7 +57,7 @@ async function getData(browser: puppeteer.Browser, debug: boolean) {
     const rows = await page.$$('#tablaDatos > tbody > tr')
     log(`Number of Planned Outages: ${rows.length}`)
     const textContentsOfRows = await Promise.all(rows.map(row => row.$$eval('td:not([hidden]) .contenidoSpan', els => els.map(el => el.textContent))))
-    log(textContentsOfRows, true)
+    log(parseRows(textContentsOfRows), true)
   }
 }
 
