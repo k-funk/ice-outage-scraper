@@ -2,15 +2,16 @@
   "name": "ice-outage-scraper",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "dev": "ts-node-dev --respawn index.ts",
-    "run": "ts-node-dev index.ts",
+    "dev": "ts-node-dev --respawn dev.ts",
+    "run": "ts-node-dev dev.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "serverless-plugin-typescript": "^2.1.2",
     "ts-node-dev": "^1.1.8"
   },
   "dependencies": {

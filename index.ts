@@ -110,8 +110,8 @@ async function task(
   }
 }
 
-async function main() {
-  dotenv.config({ path: './.env.local' })
+export default async function main() {
+  dotenv.config({ path: './.env.dev' })
 
   const { SENDGRID_KEY, SENDGRID_FROM, SENDGRID_TO } = process.env
   const sendGridEnvVars = SENDGRID_KEY && SENDGRID_FROM && SENDGRID_TO
@@ -123,5 +123,3 @@ async function main() {
     sendGridEnvVars,
   })
 }
-
-main()

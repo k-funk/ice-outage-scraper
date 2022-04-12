@@ -1,0 +1,16 @@
+org: kfunk
+app: aws-node-project
+service: ice-outage-scraper
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+
+functions:
+  scrape:
+    handler: handler.scrape
+
+plugins:
+  - serverless-plugin-typescript
