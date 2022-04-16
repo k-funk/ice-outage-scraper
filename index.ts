@@ -2,7 +2,10 @@ import puppeteer from 'puppeteer'
 import pad from 'pad'
 import dotenv from 'dotenv'
 import sendGrid from '@sendgrid/mail'
+import notifier from 'node-notifier'
 
+
+const APP_NAME = 'ICE Outage Notifier'
 const ICE_URL = 'https://www.grupoice.com/wps/portal/ICE/electricidad/suspensiones-electricas-programadas'
 const LANGUAGE = 'en'
 // TODO: make this an array of search terms
@@ -31,7 +34,7 @@ function parseRows(rows: (string | null)[][]) {
   })
 }
 
-async function getData(browser: puppeteer.Browser, debug: boolean) {
+async function getData(searchTerm: string, browser: puppeteer.Browser, debug: boolean): Promise<{ message: string, data?: { [key: string]: any }}> {
   const page = await browser.newPage()
   await page.goto(ICE_URL)
   await page.waitForNetworkIdle()
@@ -46,7 +49,7 @@ async function getData(browser: puppeteer.Browser, debug: boolean) {
     throw new Error('No initial results on page load. The site may be malfunctioning.')
   }
 
-  await page.type('#txtSearch', SEARCH_TERM)
+  await page.type('#txtSearch', searchTerm)
   const hasNoResults = await page.$$('#tablaDatos > tbody > tr > td.dataTables_empty')
 
   if (debug) {
@@ -54,34 +57,46 @@ async function getData(browser: puppeteer.Browser, debug: boolean) {
   }
 
   if (hasNoResults.length === 1) {
-    log(`No planned outages based on search term: "${SEARCH_TERM}"`)
-    return
+    return { message: `No Planned Outages. Term "${searchTerm}"` }
   }
 
   const rows = await page.$$('#tablaDatos > tbody > tr')
-  log(`Number of Planned Outages: ${rows.length}`)
   const textContentsOfRows = await Promise.all(rows.map(row => row.$$eval('td:not([hidden]) .contenidoSpan', els => els.map(el => el.textContent))))
 
   const parsedRows = parseRows(textContentsOfRows)
-  log(parsedRows, true)
-  return parsedRows
+  return {
+    message: `Planned Outages: ${rows.length}; Term: "${searchTerm}"`,
+    data: parsedRows,
+  }
 }
 
 async function task(
-  { quiet = true, debug = false, sendGridEnvVars }:
-    { quiet: boolean, debug: boolean, sendGridEnvVars?: { key: string, to: string, from: string } }
+  { searchTerm, quiet = true, debug = false, sendGridEnvVars, macNotification }:
+    { searchTerm: string, quiet: boolean, debug: boolean, sendGridEnvVars?: { key: string, to: string, from: string }, macNotification: boolean }
 ) {
 
   const browser = await puppeteer.launch({ headless: true })
 
+  let message: string | undefined
   let data: any
   try {
-    data = await getData(browser, debug)
+    ({ message, data } = await getData(searchTerm, browser, debug))
   } catch(err) {
     console.error(err)
   }
 
   browser.close()
+
+  log(message)
+  data && log(data)
+
+  if (macNotification) {
+    notifier.notify({
+      title: APP_NAME,
+      message: data ? `${message}\n${JSON.stringify(data)}`: message,
+      sound: true,
+    })
+  }
 
   if (data) {
     if (sendGridEnvVars) {
@@ -113,14 +128,16 @@ async function task(
 async function main() {
   dotenv.config({ path: './.env.local' })
 
-  const { SENDGRID_KEY, SENDGRID_FROM, SENDGRID_TO } = process.env
+  const { SENDGRID_KEY, SENDGRID_FROM, SENDGRID_TO, MAC_NOTIFICATION } = process.env
   const sendGridEnvVars = SENDGRID_KEY && SENDGRID_FROM && SENDGRID_TO
     ? { key: SENDGRID_KEY, to: SENDGRID_TO, from: SENDGRID_FROM }
     : undefined
   task({
+    searchTerm: SEARCH_TERM,
     quiet: false,
     debug: true,
     sendGridEnvVars,
+    macNotification: !!MAC_NOTIFICATION,
   })
 }
 
