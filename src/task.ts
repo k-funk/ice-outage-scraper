@@ -14,8 +14,8 @@ const SEARCH_TERM = 'manuel' // this must match the translated language. ie: "le
 function log(msg: any, multiline?: boolean) {
   const now = new Date().toLocaleString()
   if (multiline) {
-   console.log(now)
-   console.log(msg)
+    console.log(now)
+    console.log(msg)
   } else {
     console.log(`${pad(now, 23)} | ${msg}`)
   }
@@ -125,7 +125,7 @@ async function task(
   }
 }
 
-async function main() {
+export default async function main() {
   dotenv.config({ path: './.env.local' })
 
   const { SENDGRID_KEY, SENDGRID_FROM, SENDGRID_TO, MAC_NOTIFICATION } = process.env
@@ -140,5 +140,3 @@ async function main() {
     macNotification: !!MAC_NOTIFICATION,
   })
 }
-
-main()
