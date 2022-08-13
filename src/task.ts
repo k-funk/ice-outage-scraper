@@ -95,6 +95,9 @@ async function task(
       title: APP_NAME,
       message: data ? `${message}\n${JSON.stringify(data)}`: message,
       sound: true,
+      // hack to make the alert stay up  until dismissed
+      // see https://github.com/mikaelbr/node-notifier/issues/407#issuecomment-1210545810
+      timeout: 9999999999,
     })
   }
 
